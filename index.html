@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bella Ciao – A Garden of Memory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- INTRO -->
+  <div id="intro">
+    <h1>Bella Ciao</h1>
+    <p>A Garden of Memory</p>
+    <button id="enterBtn">Enter the Garden</button>
+  </div>
+
+  <!-- GARDEN -->
+  <div id="garden">
+    <div id="camera">
+      <div id="world">
+        <div id="ground"></div>
+        <!-- flowers injected here -->
+      </div>
+    </div>
+
+    <!-- SUBMISSION -->
+    <div id="submitBox" aria-label="Submit your story">
+      <div class="submitTitle">Plant a Flower</div>
+
+      <input id="nameInput" type="text" placeholder="Name (optional)" />
+
+      <label class="anonRow">
+        <input id="anonInput" type="checkbox" checked />
+        Share anonymously
+      </label>
+
+      <textarea id="storyInput"
+        placeholder="A moment you acted for justice, care, or resistance…"></textarea>
+
+      <button id="submitStory">Plant</button>
+
+      <div id="submitStatus" role="status" aria-live="polite"></div>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

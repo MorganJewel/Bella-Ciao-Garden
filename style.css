@@ -1,0 +1,275 @@
+/* ===================== RESET ===================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===================== BASE ===================== */
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: Georgia, "Times New Roman", serif;
+  background: #163120;
+  color: #f6f6f6;
+}
+
+/* ===================== INTRO ===================== */
+#intro {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #244a33, #1a3325);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  text-align: center;
+  z-index: 10;
+  padding: 72px 40px;
+}
+
+#intro h1 {
+  font-size: 5.4rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1.05;
+}
+
+#intro p {
+  font-size: 2.1rem;
+  line-height: 1.5;
+  max-width: 60rem;
+  opacity: 0.97;
+}
+
+#enterBtn {
+  margin-top: 16px;
+  padding: 22px 60px;
+  font-size: 1.65rem;
+  font-family: inherit;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  background: #f6f6f6;
+  color: #244a33;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.45);
+}
+
+/* ===================== GARDEN ===================== */
+#garden {
+  position: fixed;
+  inset: 0;
+  display: none;
+}
+
+#camera {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* ===================== WORLD ===================== */
+#world {
+  position: absolute;
+  width: 5200px;
+  height: 5200px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ===================== GROUND ===================== */
+#ground {
+  width: 100%;
+  height: 100%;
+  background-color: #2f5d3a;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255,255,255,0.045) 0px,
+      rgba(255,255,255,0.045) 1px,
+      transparent 1px,
+      transparent 12px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.08) 0px,
+      rgba(0,0,0,0.08) 2px,
+      transparent 2px,
+      transparent 18px
+    ),
+    radial-gradient(circle at 30% 40%, rgba(255,255,255,0.035), transparent 55%),
+    radial-gradient(circle at 70% 60%, rgba(0,0,0,0.055), transparent 60%);
+  background-size: 180px 180px, 200px 200px, 1000px 1000px, 1400px 1400px;
+}
+
+/* ===================== SUBMISSION ===================== */
+#submitBox {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  width: 440px;
+  background: rgba(255,255,255,0.97);
+  color: #132016;
+  padding: 22px;
+  border-radius: 20px;
+  box-shadow: 0 22px 60px rgba(0,0,0,0.38);
+}
+
+.submitTitle {
+  font-size: 1.55rem;
+  margin-bottom: 14px;
+}
+
+#nameInput,
+#storyInput {
+  width: 100%;
+  font-family: inherit;
+  font-size: 1.3rem;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,0.18);
+}
+
+#nameInput {
+  margin-bottom: 12px;
+}
+
+#storyInput {
+  height: 160px;
+  resize: none;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.anonRow {
+  font-size: 1.2rem;
+  margin-bottom: 16px;
+}
+
+#submitStory {
+  width: 100%;
+  padding: 18px;
+  font-size: 1.35rem;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  background: #2f5d3a;
+  color: #f6f6f6;
+}
+
+#submitStatus {
+  margin-top: 12px;
+  font-size: 1.2rem;
+  opacity: 0.85;
+  min-height: 1.2em;
+}
+
+/* ===================== FLOWERS ===================== */
+.flower {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+/* ===================== BLOOD ===================== */
+.flower .blood {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 46px;
+  height: 18px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    circle at 30% 40%,
+    rgba(125,20,20,0.95),
+    rgba(70,12,12,0.85)
+  );
+  border-radius: 70% 30% 60% 40% / 55% 45% 55% 45%;
+  opacity: 0;
+}
+
+.flower.planting .blood {
+  animation:
+    bloodIn 0.35s ease-out forwards,
+    bloodAbsorb 1.1s ease-in forwards 0.55s;
+}
+
+@keyframes bloodIn {
+  from { opacity: 0; transform: translateX(-50%) scale(0.85); }
+  to   { opacity: 0.95; transform: translateX(-50%) scale(1); }
+}
+
+@keyframes bloodAbsorb {
+  to { opacity: 0; transform: translateX(-50%) scale(0.5); }
+}
+
+/* ===================== BLOSSOM ===================== */
+.flower .blossom {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  width: 64px;
+  height: 64px;
+  transform: translateX(-50%) scale(1);
+}
+
+.flower.planting .blossom {
+  transform: translateX(-50%) scale(0);
+  animation: bloomIn 0.9s ease-out forwards 0.8s;
+}
+
+@keyframes bloomIn {
+  from { transform: translateX(-50%) scale(0); opacity: 0.2; }
+  to   { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+/* ===================== PETALS (GUARANTEED GRADIENT) ===================== */
+.petal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: 50% 100%;
+  border-radius: 70% 30% 65% 35% / 55% 45% 55% 45%;
+  opacity: 1;
+
+  /* Base gradient that ALWAYS exists */
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.38),
+    rgba(0,0,0,0.14)
+  );
+
+  /* Let JS color tint, never flatten */
+  mix-blend-mode: soft-light;
+
+  box-shadow: none;
+  filter: none;
+}
+
+/* ===================== TOOLTIP ===================== */
+.tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%);
+  width: 380px;
+  background: rgba(255,255,255,0.97);
+  color: #111;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 22px 60px rgba(0,0,0,0.38);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+.flower:hover .tooltip {
+  opacity: 1;
+}
