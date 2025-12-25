@@ -299,18 +299,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ================== ENTER ================== */
   enterBtn.addEventListener("click", async () => {
-    intro.style.display = "none";
-    garden.style.display = "block";
+  // Hide intro, show garden
+  intro.style.display = "none";
+  garden.style.display = "block";
 
-    await startAudio();
+  // 🔑 CRITICAL: create AudioContext INSIDE click
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
 
-    const loaded = await fetchFlowers();
-    loaded.forEach(f => {
-      flowers.push(f);
-      renderFlower(f, false);
-    });
+  // 🔑 CRITICAL: resume if suspended
+  if (audioCtx.state === "suspended") {
+    await audioCtx.resume();
+  }
 
-    requestAnimationFrame(animate);
+  // Start music AFTER resume
+  await startAudio();
+
+  // Load existing flowers
+  const loaded = await fetchFlowers();
+  loaded.forEach(f => {
+    flowers.push(f);
+    renderFlower(f, false);
   });
 
+  requestAnimationFrame(animate);
 });
+
+
