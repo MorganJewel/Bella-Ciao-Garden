@@ -298,32 +298,47 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ================== ENTER ================== */
+// ============================
+// DOM READY
+// ============================
+
+document.addEventListener("DOMContentLoaded", () => {
+  const enterBtn = document.getElementById("enterBtn");
+  const intro = document.getElementById("intro");
+  const garden = document.getElementById("garden");
+
+  if (!enterBtn || !intro || !garden) {
+    console.error("Required DOM elements not found");
+    return;
+  }
+
   enterBtn.addEventListener("click", async () => {
-  // Hide intro, show garden
-  intro.style.display = "none";
-  garden.style.display = "block";
+    console.log("ENTER CLICKED");
 
-  // 🔑 CRITICAL: create AudioContext INSIDE click
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
+    // Show garden
+    intro.style.display = "none";
+    garden.style.display = "block";
 
-  // 🔑 CRITICAL: resume if suspended
-  if (audioCtx.state === "suspended") {
-    await audioCtx.resume();
-  }
+    // Ensure AudioContext exists INSIDE user gesture
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
 
-  // Start music AFTER resume
-  await startAudio();
+    if (audioCtx.state === "suspended") {
+      await audioCtx.resume();
+    }
 
-  // Load existing flowers
-  const loaded = await fetchFlowers();
-  loaded.forEach(f => {
-    flowers.push(f);
-    renderFlower(f, false);
+    // Start music
+    await startAudio();
+
+    // Load flowers from Supabase
+    const loaded = await fetchFlowers();
+    loaded.forEach(f => {
+      flowers.push(f);
+      renderFlower(f, false);
+    });
+
+    // Start animation loop
+    requestAnimationFrame(animate);
   });
-
-  requestAnimationFrame(animate);
 });
-
-
