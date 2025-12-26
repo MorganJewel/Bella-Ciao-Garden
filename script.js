@@ -302,76 +302,32 @@ document.addEventListener("DOMContentLoaded", () => {
 // DOM READY
 // ============================
 
-// ============================
-// ENTER BUTTON (BULLETPROOF BIND)
-// ============================
+/*************************************************
+ * BELLA CIAO – MEMORY GARDEN
+ * MINIMAL SAFE SCRIPT
+ *************************************************/
+
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("JS loaded");
+
   const intro = document.getElementById("intro");
   const garden = document.getElementById("garden");
-
-  // Try common IDs first, then fall back to any button that includes "Enter"
-  const enterBtn =
-    document.getElementById("enterBtn") ||
-    document.getElementById("enterButton") ||
-    document.getElementById("enter-button") ||
-    [...document.querySelectorAll("button")].find(b =>
-      (b.textContent || "").toLowerCase().includes("enter")
-    );
-
-  console.log("[Garden] intro=", intro, "garden=", garden, "enterBtn=", enterBtn);
+  const enterBtn = document.getElementById("enterBtn");
 
   if (!intro || !garden || !enterBtn) {
-    alert("ERROR: Missing intro/garden/button. Check IDs in index.html.");
+    alert("ERROR: intro, garden, or enter button not found");
     return;
   }
 
-  // Ensure garden starts hidden (so you can verify the toggle)
+  // Initial state
   garden.style.display = "none";
 
-  enterBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
-    console.log("[Garden] ENTER CLICKED");
+  enterBtn.addEventListener("click", () => {
+    console.log("ENTER CLICKED");
 
-    // Always enter first (never block UI on audio)
     intro.style.display = "none";
     garden.style.display = "block";
 
-    // Audio: must be created/resumed inside click gesture
-    try {
-      if (!window.audioCtx) {
-        window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (window.audioCtx.state === "suspended") {
-        await window.audioCtx.resume();
-      }
-
-      // startAudio should use window.audioCtx (same context) and never create a new one
-      if (typeof startAudio === "function") {
-        await startAudio();
-      }
-    } catch (err) {
-      console.warn("[Garden] Audio did not start (browser policy or file issue):", err);
-    }
-
-    // Load/render flowers if your functions exist (won't crash if they don't)
-    try {
-      if (typeof fetchFlowers === "function" && typeof renderFlower === "function") {
-        const loaded = await fetchFlowers();
-        if (Array.isArray(loaded)) {
-          loaded.forEach(f => renderFlower(f, false));
-        }
-      }
-    } catch (err) {
-      console.warn("[Garden] Flower load/render issue:", err);
-    }
-
-    // Start animation loop if present
-    try {
-      if (typeof animate === "function") {
-        requestAnimationFrame(animate);
-      }
-    } catch (err) {
-      console.warn("[Garden] Animation issue:", err);
-    }
+    alert("You have entered the garden.");
   });
 });
