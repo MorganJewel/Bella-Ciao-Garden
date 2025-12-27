@@ -66,32 +66,45 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ================== AUDIO ================== */
-  let audioCtx;
+  let audioCtx = null;
   let tracks = [];
   let hoverInstrument = null;
 
+  // FIX: GitHub Pages requires correct absolute paths
+  const BASE_PATH = window.location.pathname.replace(/\/$/, "");
   const trackDefs = [
-    { name: "guitar1", file: "audio/guitar_1.ogg" },
-    { name: "guitar2", file: "audio/guitar_2.ogg" },
-    { name: "violin", file: "audio/violin.ogg" },
-    { name: "soprano", file: "audio/soprano.ogg" },
-    { name: "alto", file: "audio/alto.ogg" }
+    { name: "guitar1", file: `${BASE_PATH}/audio/guitar_1.ogg` },
+    { name: "guitar2", file: `${BASE_PATH}/audio/guitar_2.ogg` },
+    { name: "violin", file: `${BASE_PATH}/audio/violin.ogg` },
+    { name: "soprano", file: `${BASE_PATH}/audio/soprano.ogg` },
+    { name: "alto", file: `${BASE_PATH}/audio/alto.ogg` }
   ];
 
   async function startAudio() {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    await audioCtx.resume(); // REQUIRED for GitHub Pages
 
     const decoded = await Promise.all(
       trackDefs.map(async t => {
-        const res = await fetch(t.file);
-        const buf = await audioCtx.decodeAudioData(await res.arrayBuffer());
-        return { ...t, buffer: buf };
+        try {
+          const res = await fetch(t.file);
+          if (!res.ok) throw new Error(`Audio fetch failed: ${t.file}`);
+          const buf = await audioCtx.decodeAudioData(await res.arrayBuffer());
+          return { ...t, buffer: buf };
+        } catch (err) {
+          console.error("Audio load error:", err);
+          return null;
+        }
       })
     );
 
+    const validTracks = decoded.filter(Boolean);
     const startTime = audioCtx.currentTime + 0.25;
 
-    decoded.forEach(t => {
+    validTracks.forEach(t => {
       const src = audioCtx.createBufferSource();
       const gain = audioCtx.createGain();
       src.buffer = t.buffer;
@@ -142,11 +155,6 @@ document.addEventListener("DOMContentLoaded", () => {
     el.style.left = `${flower.x}px`;
     el.style.top = `${WORLD_SIZE - flower.y}px`;
     el.style.transform = "translate(-50%, -100%)";
-
-
-    const blood = document.createElement("div");
-    blood.className = "blood";
-    el.appendChild(blood);
 
     const stem = document.createElement("div");
     stem.className = "stem";
@@ -241,18 +249,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ================== SUPABASE ================== */
   async function fetchFlowers() {
-    const res = await fetch(`${REST_FLOWERS}?select=*&order=created_at.asc`, { headers: HEADERS });
-    return await res.json();
+    try {
+      const res = await fetch(`${REST_FLOWERS}?select=*&order=created_at.asc`, { headers: HEADERS });
+      if (!res.ok) throw new Error("Supabase fetch failed");
+      return await res.json();
+    } catch (err) {
+      console.error("Supabase fetch error:", err);
+      return [];
+    }
   }
 
   async function insertFlower(row) {
-    const res = await fetch(REST_FLOWERS, {
-      method: "POST",
-      headers: { ...HEADERS, Prefer: "return=representation" },
-      body: JSON.stringify(row)
-    });
-    const data = await res.json();
-    return data[0];
+    try {
+      const res = await fetch(REST_FLOWERS, {
+        method: "POST",
+        headers: { ...HEADERS, Prefer: "return=representation" },
+        body: JSON.stringify(row)
+      });
+      if (!res.ok) throw new Error("Supabase insert failed");
+      const data = await res.json();
+      return data[0];
+    } catch (err) {
+      console.error("Supabase insert error:", err);
+      throw err;
+    }
   }
 
   /* ================== SUBMIT ================== */
@@ -302,7 +322,7 @@ document.addEventListener("DOMContentLoaded", () => {
     intro.style.display = "none";
     garden.style.display = "block";
 
-    await startAudio();
+    await startAudio(); // FIX: now allowed by browser
 
     const loaded = await fetchFlowers();
     loaded.forEach(f => {
@@ -314,4 +334,3 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
 });
-
