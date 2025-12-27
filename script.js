@@ -298,36 +298,20 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ================== ENTER ================== */
-// ============================
-// DOM READY
-// ============================
-
-/*************************************************
- * BELLA CIAO – MEMORY GARDEN
- * MINIMAL SAFE SCRIPT
- *************************************************/
-
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("JS loaded");
-
-  const intro = document.getElementById("intro");
-  const garden = document.getElementById("garden");
-  const enterBtn = document.getElementById("enterBtn");
-
-  if (!intro || !garden || !enterBtn) {
-    alert("ERROR: intro, garden, or enter button not found");
-    return;
-  }
-
-  // Initial state
-  garden.style.display = "none";
-
-  enterBtn.addEventListener("click", () => {
-    console.log("ENTER CLICKED");
-
+  enterBtn.addEventListener("click", async () => {
     intro.style.display = "none";
     garden.style.display = "block";
 
-    alert("You have entered the garden.");
+    await startAudio();
+
+    const loaded = await fetchFlowers();
+    loaded.forEach(f => {
+      flowers.push(f);
+      renderFlower(f, false);
+    });
+
+    requestAnimationFrame(animate);
   });
+
 });
+
