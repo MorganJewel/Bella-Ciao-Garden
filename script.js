@@ -70,14 +70,15 @@ document.addEventListener("DOMContentLoaded", () => {
   let tracks = [];
   let hoverInstrument = null;
 
-  // FIX: GitHub Pages requires correct absolute paths
-  const BASE_PATH = window.location.pathname.replace(/\/$/, "");
+  // FIX: Correct GitHub Pages path
+  const BASE = "/Bella-Ciao-Garden";
+
   const trackDefs = [
-    { name: "guitar1", file: `${BASE_PATH}/audio/guitar_1.ogg` },
-    { name: "guitar2", file: `${BASE_PATH}/audio/guitar_2.ogg` },
-    { name: "violin", file: `${BASE_PATH}/audio/violin.ogg` },
-    { name: "soprano", file: `${BASE_PATH}/audio/soprano.ogg` },
-    { name: "alto", file: `${BASE_PATH}/audio/alto.ogg` }
+    { name: "guitar1", file: `${BASE}/audio/guitar_1.ogg` },
+    { name: "guitar2", file: `${BASE}/audio/guitar_2.ogg` },
+    { name: "violin", file: `${BASE}/audio/violin.ogg` },
+    { name: "soprano", file: `${BASE}/audio/soprano.ogg` },
+    { name: "alto", file: `${BASE}/audio/alto.ogg` }
   ];
 
   async function startAudio() {
@@ -85,17 +86,29 @@ document.addEventListener("DOMContentLoaded", () => {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    await audioCtx.resume(); // REQUIRED for GitHub Pages
+    await audioCtx.resume(); // Required for Chrome autoplay rules
 
     const decoded = await Promise.all(
       trackDefs.map(async t => {
         try {
           const res = await fetch(t.file);
-          if (!res.ok) throw new Error(`Audio fetch failed: ${t.file}`);
-          const buf = await audioCtx.decodeAudioData(await res.arrayBuffer());
-          return { ...t, buffer: buf };
+          if (!res.ok) {
+            console.error("Audio fetch failed:", t.file, "Status:", res.status);
+            return null;
+          }
+
+          const arrayBuf = await res.arrayBuffer();
+
+          try {
+            const buf = await audioCtx.decodeAudioData(arrayBuf);
+            return { ...t, buffer: buf };
+          } catch (err) {
+            console.error("Decode failed for:", t.file, err);
+            return null;
+          }
+
         } catch (err) {
-          console.error("Audio load error:", err);
+          console.error("Audio load error:", t.file, err);
           return null;
         }
       })
@@ -322,7 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
     intro.style.display = "none";
     garden.style.display = "block";
 
-    await startAudio(); // FIX: now allowed by browser
+    await startAudio();
 
     const loaded = await fetchFlowers();
     loaded.forEach(f => {
