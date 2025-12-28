@@ -378,10 +378,30 @@ document.addEventListener("DOMContentLoaded", () => {
   async function fetchFlowers() {
     try {
       const res = await fetch(`${REST_FLOWERS}?select=*&order=created_at.asc`, { headers: HEADERS });
-      if (!res.ok) throw new Error("Supabase fetch failed");
-      return await res.json();
+      if (!res.ok) {
+        // try to capture response body to help debug (may be CORS/401/403)
+        let body = null;
+        try { body = await res.text(); } catch (e) { body = "<could not read body>"; }
+        console.error("Supabase fetch failed:", res.status, body);
+        // fallback: use cached flowers from localStorage if present
+        const cached = localStorage.getItem("flowers_cache");
+        if (cached) {
+          console.warn("Using cached flowers due to Supabase fetch failure.");
+          try { return JSON.parse(cached); } catch (e) { return []; }
+        }
+        throw new Error("Supabase fetch failed");
+      }
+      const data = await res.json();
+      // cache successful result so we can show flowers even when fetch fails later
+      try { localStorage.setItem("flowers_cache", JSON.stringify(data)); } catch (e) { console.warn("Could not cache flowers", e); }
+      return data;
     } catch (err) {
       console.error("Supabase fetch error:", err);
+      const cached = localStorage.getItem("flowers_cache");
+      if (cached) {
+        console.warn("Using cached flowers due to Supabase fetch error.");
+        try { return JSON.parse(cached); } catch (e) { return []; }
+      }
       return [];
     }
   }
@@ -395,6 +415,15 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       if (!res.ok) throw new Error("Supabase insert failed");
       const data = await res.json();
+      // update local cache with the new saved row (so cached view remains current)
+      try {
+        const saved = data[0];
+        const cached = JSON.parse(localStorage.getItem("flowers_cache") || "[]");
+        cached.push(saved);
+        localStorage.setItem("flowers_cache", JSON.stringify(cached));
+      } catch (e) {
+        // ignore cache errors
+      }
       return data[0];
     } catch (err) {
       console.error("Supabase insert error:", err);
@@ -474,9 +503,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // nudge overlapping loaded flowers apart for display
     relaxLoadedFlowers();
 
-    // NOTE: We intentionally do NOT persist relaxed positions back to the DB here.
-    // That prevents accidental overwrites/deletions of existing submissions.
-    // If you want to persist positions later, I can add a manual "Save layout" action.
+    // ensure world is empty before rendering (avoid invisible duplicates)
+    world.innerHTML = "";
 
     // now render all flowers
     flowers.forEach(f => renderFlower(f, false));
