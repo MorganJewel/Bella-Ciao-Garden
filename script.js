@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ================== SUPABASE CONFIG ================== */
   const SUPABASE_URL = "https://pyxfpgdfqrdjnghndonl.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5eGZwZ2RmcXJkam5naG5kb25sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2OTA4NjQsImV4cCI6MjA4MjI2Njg2NH0.vNA[...]";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5eGZwZ2RmcXJkam5naG5kb25sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2OTA4NjQsImV4cCI6MjA4MjI2Njg2NH0.vNA[...]"
 
   const REST_FLOWERS = `${SUPABASE_URL}/rest/v1/flowers`;
   const HEADERS = {
@@ -264,6 +264,59 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Persist relaxed positions back to Supabase for already-planted flowers.
+  // This will update rows where the relaxed (_x/_y) differ from stored x/y.
+  async function persistRelaxedPositions() {
+    // Collect flowers that seem to have moved enough to warrant persistence.
+    const toUpdate = flowers.filter(f => {
+      if (!f || typeof f._x !== "number" || typeof f._y !== "number") return false;
+      if (typeof f.x !== "number" || typeof f.y !== "number") return false;
+      if (!f.id) return false; // must have an id to PATCH
+      // Only update when integer-rounded positions actually differ.
+      return (Math.round(f._x) !== f.x) || (Math.round(f._y) !== f.y);
+    });
+
+    if (!toUpdate.length) return;
+
+    try {
+      // Send PATCH requests in parallel but with error handling per-row.
+      await Promise.all(toUpdate.map(async f => {
+        const nx = Math.round(f._x);
+        const ny = Math.round(f._y);
+        try {
+          const res = await fetch(`${REST_FLOWERS}?id=eq.${encodeURIComponent(f.id)}`, {
+            method: "PATCH",
+            headers: { ...HEADERS, Prefer: "return=representation" },
+            body: JSON.stringify({ x: nx, y: ny })
+          });
+          if (!res.ok) {
+            console.warn("Failed to persist flower position for id", f.id, "status", res.status);
+            return;
+          }
+          // Update local canonical x/y from response if available
+          try {
+            const updated = await res.json();
+            if (Array.isArray(updated) && updated[0]) {
+              f.x = updated[0].x;
+              f.y = updated[0].y;
+            } else {
+              f.x = nx;
+              f.y = ny;
+            }
+          } catch (e) {
+            // If server returned no JSON (e.g., return=minimal), still apply positions locally.
+            f.x = nx;
+            f.y = ny;
+          }
+        } catch (err) {
+          console.error("Error persisting flower", f.id, err);
+        }
+      }));
+    } catch (e) {
+      console.error("persistRelaxedPositions error:", e);
+    }
+  }
+
   function renderFlower(flower, planting = false) {
     const el = document.createElement("div");
     el.className = `flower ${planting ? "planting" : "live"} ${motionClass(flower.instrument)}`;
@@ -473,6 +526,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // nudge overlapping loaded flowers apart for display
     relaxLoadedFlowers();
+
+    // persist relaxed positions back to the DB so existing planted flowers aren't clumped
+    // (only updates rows whose positions actually changed after relaxation)
+    await persistRelaxedPositions();
 
     // now render all flowers
     flowers.forEach(f => renderFlower(f, false));
