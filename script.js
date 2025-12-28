@@ -2,7 +2,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ================== SUPABASE CONFIG ================== */
   const SUPABASE_URL = "https://pyxfpgdfqrdjnghndonl.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5eGZwZ2RmcXJkam5naG5kb25sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2OTA4NjQsImV4cCI6MjA4MjI2Njg2NH0.vNA[...]"
+
+  // Read anon key from a meta tag in index.html to avoid committing keys directly.
+  // Add this meta to your index.html:
+  // <meta name="supabase-anon-key" content="eyJ...">
+  const SUPABASE_ANON_KEY = document.querySelector('meta[name="supabase-anon-key"]')?.content || "";
+
+  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === "REPLACE_ME") {
+    console.error("Supabase anon key is missing. Add a meta[name='supabase-anon-key'] in index.html or set SUPABASE_ANON_KEY.");
+    // Optional: friendly UI message (if you have an element to show it)
+    const intro = document.getElementById("intro");
+    if (intro) {
+      const err = document.createElement("div");
+      err.style.color = "red";
+      err.style.marginTop = "12px";
+      err.textContent = "Configuration error: Supabase API key missing. Contact the site owner.";
+      intro.appendChild(err);
+    }
+  }
 
   const REST_FLOWERS = `${SUPABASE_URL}/rest/v1/flowers`;
   const HEADERS = {
@@ -383,6 +400,9 @@ document.addEventListener("DOMContentLoaded", () => {
         let body = null;
         try { body = await res.text(); } catch (e) { body = "<could not read body>"; }
         console.error("Supabase fetch failed:", res.status, body);
+        if (res.status === 401) {
+          console.error("401 from Supabase — check anon key and table policies (RLS).");
+        }
         // fallback: use cached flowers from localStorage if present
         const cached = localStorage.getItem("flowers_cache");
         if (cached) {
@@ -413,7 +433,15 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: { ...HEADERS, Prefer: "return=representation" },
         body: JSON.stringify(row)
       });
-      if (!res.ok) throw new Error("Supabase insert failed");
+      if (!res.ok) {
+        let body = "<no body>";
+        try { body = await res.text(); } catch (e) { /* ignore */ }
+        console.error("Supabase insert failed:", res.status, body);
+        if (res.status === 401) {
+          throw new Error("Supabase insert failed: 401 — check anon key and policies.");
+        }
+        throw new Error("Supabase insert failed");
+      }
       const data = await res.json();
       // update local cache with the new saved row (so cached view remains current)
       try {
