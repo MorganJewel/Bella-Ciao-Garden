@@ -251,6 +251,11 @@ enterBtn.addEventListener("click", async () => {
     renderFlower(f);
   });
 
+  // ✅ CENTER CAMERA AFTER FLOWERS LOAD
+  camera.x = -(WORLD_WIDTH / 2) + (window.innerWidth / 2);
+  camera.y = -(WORLD_HEIGHT / 2) + (window.innerHeight / 2);
+
+  // ✅ START ANIMATION LOOP
   requestAnimationFrame(function animate() {
     camera.zoom += (camera.targetZoom - camera.zoom) * 0.08;
     world.style.transform =
@@ -261,6 +266,7 @@ enterBtn.addEventListener("click", async () => {
 });
 
 });
+
 
 
 
