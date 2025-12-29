@@ -23,7 +23,7 @@ const nameInput = document.getElementById("nameInput");
 const anonInput = document.getElementById("anonInput");
 
 /* ================== WORLD ================== */
-const WORLD_SIZE = 7000;
+const WORLD_SIZE = 14000;
 const WORLD_CENTER = WORLD_SIZE / 2;
 const CELL_SIZE = 190;
 const GRID_COLS = Math.floor(WORLD_SIZE / CELL_SIZE);
@@ -261,5 +261,6 @@ enterBtn.addEventListener("click", async () => {
 });
 
 });
+
 
 
