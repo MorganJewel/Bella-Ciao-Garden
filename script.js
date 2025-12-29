@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ================== SUPABASE CONFIG ================== */
   const SUPABASE_URL = "https://pyxfpgdfqrdjnghndonl.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5eGZwZ2RmcXJkam5naG5kb25sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2OTA4NjQsImV4cCI6MjA4MjI2Njg2NH0.vNADBa5Tn1Yyyvto75aBIXYig586ilRF1ysuX7Fy_wg";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5eGZwZ2RmcXJkam5naG5kb25sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2OTA4NjQsImV4cCI6MjA4MjI2Njg2NH0.vNA[...]";
 
   const REST_FLOWERS = `${SUPABASE_URL}/rest/v1/flowers`;
   const HEADERS = {
@@ -70,14 +70,15 @@ document.addEventListener("DOMContentLoaded", () => {
   let tracks = [];
   let hoverInstrument = null;
 
-  // FIX: GitHub Pages requires correct absolute paths
-  const BASE_PATH = window.location.pathname.replace(/\/$/, "");
+  // FIX: Correct GitHub Pages path
+  const BASE = "/Bella-Ciao-Garden";
+
   const trackDefs = [
-    { name: "guitar1", file: `${BASE_PATH}/audio/guitar_1.ogg` },
-    { name: "guitar2", file: `${BASE_PATH}/audio/guitar_2.ogg` },
-    { name: "violin", file: `${BASE_PATH}/audio/violin.ogg` },
-    { name: "soprano", file: `${BASE_PATH}/audio/soprano.ogg` },
-    { name: "alto", file: `${BASE_PATH}/audio/alto.ogg` }
+    { name: "guitar1", file: `${BASE}/audio/guitar_1.ogg` },
+    { name: "guitar2", file: `${BASE}/audio/guitar_2.ogg` },
+    { name: "violin", file: `${BASE}/audio/violin.ogg` },
+    { name: "soprano", file: `${BASE}/audio/soprano.ogg` },
+    { name: "alto", file: `${BASE}/audio/alto.ogg` }
   ];
 
   async function startAudio() {
@@ -85,17 +86,29 @@ document.addEventListener("DOMContentLoaded", () => {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    await audioCtx.resume(); // REQUIRED for GitHub Pages
+    await audioCtx.resume(); // Required for Chrome autoplay rules
 
     const decoded = await Promise.all(
       trackDefs.map(async t => {
         try {
           const res = await fetch(t.file);
-          if (!res.ok) throw new Error(`Audio fetch failed: ${t.file}`);
-          const buf = await audioCtx.decodeAudioData(await res.arrayBuffer());
-          return { ...t, buffer: buf };
+          if (!res.ok) {
+            console.error("Audio fetch failed:", t.file, "Status:", res.status);
+            return null;
+          }
+
+          const arrayBuf = await res.arrayBuffer();
+
+          try {
+            const buf = await audioCtx.decodeAudioData(arrayBuf);
+            return { ...t, buffer: buf };
+          } catch (err) {
+            console.error("Decode failed for:", t.file, err);
+            return null;
+          }
+
         } catch (err) {
-          console.error("Audio load error:", err);
+          console.error("Audio load error:", t.file, err);
           return null;
         }
       })
@@ -149,11 +162,118 @@ document.addEventListener("DOMContentLoaded", () => {
     return "motion-soprano";
   }
 
+  // Helper: effective visual radius of a flower (petals + padding)
+  function getEffectiveRadius(traits) {
+    const petalMax = Math.max(traits?.petalW || 12, traits?.petalH || 24);
+    const core = traits?.radius || 18;
+    return core + petalMax / 2 + 12; // extra padding so petals don't touch
+  }
+
+  function isOverlap(x1, y1, r1, x2, y2, r2) {
+    return Math.hypot(x1 - x2, y1 - y2) < (r1 + r2);
+  }
+
+  // Try to find a nearby position that does not overlap existing flowers.
+  // Starts at desiredX/desiredY and spirals outwards with random jitter.
+  function findNonOverlappingPosition(desiredX, desiredY, traits, maxAttempts = 120) {
+    const baseR = getEffectiveRadius(traits);
+    // If there are no existing flowers, just return the desired position
+    if (!flowers.length) return { x: clampToWorld(desiredX), y: clampToWorld(desiredY) };
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const angle = Math.random() * Math.PI * 2;
+      const step = Math.ceil((attempt + 1) / 4);
+      const spread = 8 + step * 22 + Math.random() * 28;
+      const dx = (attempt === 0) ? 0 : Math.cos(angle) * spread;
+      const dy = (attempt === 0) ? 0 : Math.sin(angle) * spread;
+      const cx = clampToWorld(desiredX + dx);
+      const cy = clampToWorld(desiredY + dy);
+
+      let ok = true;
+      for (const f of flowers) {
+        const fx = (typeof f._x === "number") ? f._x : f.x;
+        const fy = (typeof f._y === "number") ? f._y : f.y;
+        const fr = getEffectiveRadius(f.traits || {});
+        if (isOverlap(cx, cy, baseR, fx, fy, fr + 8)) { // +8 safety gap
+          ok = false;
+          break;
+        }
+      }
+      if (ok) return { x: cx, y: cy };
+    }
+
+    // last resort: pick a random spot anywhere in world
+    for (let i = 0; i < 60; i++) {
+      const cx = clampToWorld(120 + Math.random() * (WORLD_SIZE - 240));
+      const cy = clampToWorld(120 + Math.random() * (WORLD_SIZE - 240));
+      let ok = true;
+      for (const f of flowers) {
+        const fx = (typeof f._x === "number") ? f._x : f.x;
+        const fy = (typeof f._y === "number") ? f._y : f.y;
+        const fr = getEffectiveRadius(f.traits || {});
+        if (isOverlap(cx, cy, baseR, fx, fy, fr + 8)) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) return { x: cx, y: cy };
+    }
+
+    // fallback to desired position if nothing else
+    return { x: clampToWorld(desiredX), y: clampToWorld(desiredY) };
+  }
+
+  // Relax loaded flowers to separate any overlapping ones (display-only)
+  function relaxLoadedFlowers(iterations = 40) {
+    // Ensure each flower has _x/_y for display
+    flowers.forEach(f => {
+      if (typeof f._x !== "number") f._x = f.x;
+      if (typeof f._y !== "number") f._y = f.y;
+      if (typeof f.traits === "string") {
+        try { f.traits = JSON.parse(f.traits); } catch (e) { /* ignore */ }
+      }
+    });
+
+    for (let it = 0; it < iterations; it++) {
+      let moved = false;
+      for (let i = 0; i < flowers.length; i++) {
+        for (let j = i + 1; j < flowers.length; j++) {
+          const a = flowers[i];
+          const b = flowers[j];
+          const ax = a._x, ay = a._y;
+          const bx = b._x, by = b._y;
+          const ra = getEffectiveRadius(a.traits || {});
+          const rb = getEffectiveRadius(b.traits || {});
+          const dx = bx - ax;
+          const dy = by - ay;
+          const dist = Math.hypot(dx, dy) || 0.001;
+          const minDist = ra + rb + 6; // small buffer
+          if (dist < minDist) {
+            moved = true;
+            const overlap = (minDist - dist) * 0.5;
+            const ux = dx / dist;
+            const uy = dy / dist;
+            a._x = clampToWorld(ax - ux * overlap * 0.7);
+            a._y = clampToWorld(ay - uy * overlap * 0.7);
+            b._x = clampToWorld(bx + ux * overlap * 0.7);
+            b._y = clampToWorld(by + uy * overlap * 0.7);
+          }
+        }
+      }
+      if (!moved) break;
+    }
+  }
+
   function renderFlower(flower, planting = false) {
     const el = document.createElement("div");
     el.className = `flower ${planting ? "planting" : "live"} ${motionClass(flower.instrument)}`;
-    el.style.left = `${flower.x}px`;
-    el.style.top = `${WORLD_SIZE - flower.y}px`;
+
+    // use display coordinates if present (_x/_y) so we can nudge visuals without changing DB
+    const dx = (typeof flower._x === "number") ? flower._x : flower.x;
+    const dy = (typeof flower._y === "number") ? flower._y : flower.y;
+
+    el.style.left = `${dx}px`;
+    el.style.top = `${WORLD_SIZE - dy}px`;
     el.style.transform = "translate(-50%, -100%)";
 
     const stem = document.createElement("div");
@@ -162,6 +282,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const blossom = document.createElement("div");
     blossom.className = "blossom";
+
+    // ensure traits object
+    if (typeof flower.traits === "string") {
+      try { flower.traits = JSON.parse(flower.traits); } catch (e) { /* ignore */ }
+    }
 
     for (let i = 0; i < flower.traits.petals; i++) {
       const p = document.createElement("div");
@@ -222,7 +347,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let dist = Infinity;
 
     flowers.forEach(f => {
-      const d = Math.hypot(f.x - wx, f.y - wy);
+      const fx = (typeof f._x === "number") ? f._x : f.x;
+      const fy = (typeof f._y === "number") ? f._y : f.y;
+      const d = Math.hypot(fx - wx, fy - wy);
       if (d < dist) {
         dist = d;
         closest = f.instrument;
@@ -284,16 +411,20 @@ document.addEventListener("DOMContentLoaded", () => {
     submitStatus.textContent = "Planting…";
 
     try {
-      const { wx, wy } = getCameraWorldPosition();
-      const x = clampToWorld(wx + (Math.random() - 0.5) * 200);
-      const y = clampToWorld(wy + (Math.random() - 0.5) * 200);
-
       const instrument = trackDefs[Math.floor(Math.random() * trackDefs.length)].name;
       const traits = createTraits(story, instrument);
 
+      const { wx, wy } = getCameraWorldPosition();
+      const desiredX = clampToWorld(wx + (Math.random() - 0.5) * 200);
+      const desiredY = clampToWorld(wy + (Math.random() - 0.5) * 200);
+
+      const pos = findNonOverlappingPosition(desiredX, desiredY, traits);
+      const x = Math.round(pos.x);
+      const y = Math.round(pos.y);
+
       const saved = await insertFlower({
-        x: Math.round(x),
-        y: Math.round(y),
+        x,
+        y,
         instrument,
         traits,
         story,
@@ -302,6 +433,11 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       const flower = { ...saved };
+      if (typeof flower.traits === "string") {
+        try { flower.traits = JSON.parse(flower.traits); } catch (e) { /* ignore */ }
+      }
+      flower._x = x;
+      flower._y = y;
       flowers.push(flower);
       renderFlower(flower, true);
 
@@ -322,13 +458,24 @@ document.addEventListener("DOMContentLoaded", () => {
     intro.style.display = "none";
     garden.style.display = "block";
 
-    await startAudio(); // FIX: now allowed by browser
+    await startAudio();
 
     const loaded = await fetchFlowers();
+    // push loaded rows into flowers and ensure traits/coords are normalized
     loaded.forEach(f => {
+      if (typeof f.traits === "string") {
+        try { f.traits = JSON.parse(f.traits); } catch (e) { /* ignore */ }
+      }
+      f._x = (typeof f.x === "number") ? f.x : clampToWorld(Math.round(WORLD_CENTER + (Math.random() - 0.5) * 300));
+      f._y = (typeof f.y === "number") ? f.y : clampToWorld(Math.round(WORLD_CENTER + (Math.random() - 0.5) * 300));
       flowers.push(f);
-      renderFlower(f, false);
     });
+
+    // nudge overlapping loaded flowers apart for display
+    relaxLoadedFlowers();
+
+    // now render all flowers
+    flowers.forEach(f => renderFlower(f, false));
 
     requestAnimationFrame(animate);
   });
