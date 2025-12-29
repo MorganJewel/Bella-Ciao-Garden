@@ -23,14 +23,8 @@ const nameInput = document.getElementById("nameInput");
 const anonInput = document.getElementById("anonInput");
 
 /* ================== WORLD ================== */
-const WORLD_SIZE = 14000;
-const WORLD_CENTER = WORLD_SIZE / 2;
-const CELL_SIZE = 190;
-const GRID_COLS = Math.floor(WORLD_SIZE / CELL_SIZE);
-
-function clamp(v) {
-  return Math.max(120, Math.min(WORLD_SIZE - 120, v));
-}
+const WORLD_SIZE = 14000;          // Size of the meadow (square)
+const WORLD_PADDING = 200;         // Keeps flowers away from edges
 
 /* ================== CAMERA ================== */
 let camera = {
@@ -44,25 +38,50 @@ let dragging = false;
 let lastX = 0;
 let lastY = 0;
 
+/* ================== CAMERA CONTROLS ================== */
 document.addEventListener("mousedown", e => {
   dragging = true;
   lastX = e.clientX;
   lastY = e.clientY;
 });
-document.addEventListener("mouseup", () => dragging = false);
+
+document.addEventListener("mouseup", () => {
+  dragging = false;
+});
+
 document.addEventListener("mousemove", e => {
   if (!dragging) return;
+
   camera.x += (e.clientX - lastX) / camera.zoom;
   camera.y += (e.clientY - lastY) / camera.zoom;
+
   lastX = e.clientX;
   lastY = e.clientY;
-});
-document.addEventListener("wheel", e => {
-  e.preventDefault();
-  camera.targetZoom += e.deltaY * -0.001;
-  camera.targetZoom = Math.min(Math.max(camera.targetZoom, 0.35), 1.6);
-}, { passive: false });
 
+  clampCamera();
+});
+
+document.addEventListener(
+  "wheel",
+  e => {
+    e.preventDefault();
+    camera.targetZoom += e.deltaY * -0.001;
+    camera.targetZoom = Math.min(Math.max(camera.targetZoom, 0.35), 1.6);
+  },
+  { passive: false }
+);
+
+/* ================== CAMERA CLAMP ================== */
+function clampCamera() {
+  const viewW = window.innerWidth;
+  const viewH = window.innerHeight;
+
+  const minX = -(WORLD_SIZE - viewW);
+  const minY = -(WORLD_SIZE - viewH);
+
+  camera.x = Math.min(0, Math.max(minX, camera.x));
+  camera.y = Math.min(0, Math.max(minY, camera.y));
+}
 /* ================== AUDIO ================== */
 let audioCtx = null;
 let audioStarted = false;
@@ -266,6 +285,7 @@ enterBtn.addEventListener("click", async () => {
 });
 
 });
+
 
 
 
