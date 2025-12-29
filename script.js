@@ -252,6 +252,8 @@ enterBtn.addEventListener("click", async () => {
   });
 
   // ✅ CENTER CAMERA AFTER FLOWERS LOAD
+  const WORLD_WIDTH = 7000;
+  const WORLD_HEIGHT = 7000;
   camera.x = -(WORLD_WIDTH / 2) + (window.innerWidth / 2);
   camera.y = -(WORLD_HEIGHT / 2) + (window.innerHeight / 2);
 
@@ -266,6 +268,7 @@ enterBtn.addEventListener("click", async () => {
 });
 
 });
+
 
 
 
