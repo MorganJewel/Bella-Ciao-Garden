@@ -23,7 +23,7 @@ const nameInput = document.getElementById("nameInput");
 const anonInput = document.getElementById("anonInput");
 
 /* ================== WORLD ================== */
-const WORLD_SIZE = 5200;
+const WORLD_SIZE = 7000;
 const WORLD_CENTER = WORLD_SIZE / 2;
 const CELL_SIZE = 190;
 const GRID_COLS = Math.floor(WORLD_SIZE / CELL_SIZE);
@@ -146,7 +146,7 @@ function renderFlower(flower) {
   const el = document.createElement("div");
   el.className = "flower";
   el.style.left = `${flower.x}px`;
-  el.style.top = `${WORLD_SIZE - flower.y}px`;
+  el.style.top = `${flower.y}px`;
   el.style.transform = "translate(-50%, -100%)";
 
   const blossom = document.createElement("div");
@@ -261,3 +261,4 @@ enterBtn.addEventListener("click", async () => {
 });
 
 });
+
