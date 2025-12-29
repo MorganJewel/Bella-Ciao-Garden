@@ -21,11 +21,13 @@ const submitBtn = document.getElementById("submitStory");
 const storyInput = document.getElementById("storyInput");
 const nameInput = document.getElementById("nameInput");
 const anonInput = document.getElementById("anonInput");
-const submitStatus = document.getElementById("submitStatus");
 
 /* ================== WORLD CONSTANTS ================== */
 const WORLD_SIZE = 5200;
 const WORLD_CENTER = WORLD_SIZE / 2;
+const CELL_SIZE = 180; // ★ controls spacing between flowers
+
+const GRID_COLS = Math.floor(WORLD_SIZE / CELL_SIZE);
 
 function clampToWorld(v) {
   return Math.max(120, Math.min(WORLD_SIZE - 120, v));
@@ -48,9 +50,7 @@ document.addEventListener("mousedown", e => {
   lastX = e.clientX;
   lastY = e.clientY;
 });
-
 document.addEventListener("mouseup", () => dragging = false);
-
 document.addEventListener("mousemove", e => {
   if (!dragging) return;
   camera.x += (e.clientX - lastX) / camera.zoom;
@@ -58,7 +58,6 @@ document.addEventListener("mousemove", e => {
   lastX = e.clientX;
   lastY = e.clientY;
 });
-
 document.addEventListener("wheel", e => {
   e.preventDefault();
   camera.targetZoom += e.deltaY * -0.001;
@@ -67,9 +66,8 @@ document.addEventListener("wheel", e => {
 
 /* ================== AUDIO ================== */
 let audioCtx = null;
-let tracks = [];
-let hoverInstrument = null;
 let audioStarted = false;
+let tracks = [];
 
 const BASE = "/Bella-Ciao-Garden";
 const trackDefs = [
@@ -93,7 +91,6 @@ async function startAudio() {
   );
 
   const startTime = audioCtx.currentTime + 0.25;
-
   decoded.forEach(t => {
     const src = audioCtx.createBufferSource();
     const gain = audioCtx.createGain();
@@ -110,19 +107,27 @@ async function startAudio() {
 const flowers = [];
 const COLORS = ["#f4d35e", "#ee964b", "#f95738", "#cdb4db", "#83c5be"];
 
-function isTooClose(x, y, min = 140) {
-  return flowers.some(f => Math.hypot(f.x - x, f.y - y) < min);
-}
-
 function createTraits(story) {
   const intensity = Math.min(Math.max(story.length / 300, 0.2), 1);
   const color = COLORS[Math.floor(Math.random() * COLORS.length)];
   return {
-    petals: Math.round(5 + intensity * 6),
+    petals: Math.round(6 + intensity * 6),
     petalW: 12 + intensity * 4,
     petalH: 24 + intensity * 10,
-    radius: 18 + intensity * 8,
+    radius: 20 + intensity * 10,
     gradient: `linear-gradient(180deg, ${color}, rgba(0,0,0,0.25))`
+  };
+}
+
+// ★ FIX: deterministic grid placement with organic jitter
+function computeGridPosition(index) {
+  const col = index % GRID_COLS;
+  const row = Math.floor(index / GRID_COLS);
+
+  const jitter = 40;
+  return {
+    x: clampToWorld(col * CELL_SIZE + CELL_SIZE / 2 + (Math.random() - 0.5) * jitter),
+    y: clampToWorld(row * CELL_SIZE + CELL_SIZE / 2 + (Math.random() - 0.5) * jitter)
   };
 }
 
@@ -167,29 +172,19 @@ async function insertFlower(row) {
   return data[0];
 }
 
-/* ================== SUBMIT (FIXED) ================== */
+/* ================== SUBMIT ================== */
 submitBtn.addEventListener("click", async () => {
   const story = storyInput.value.trim();
   if (!story) return;
 
-  let x, y, tries = 0;
-  do {
-    x = Math.random() * WORLD_SIZE;
-    y = Math.random() * WORLD_SIZE;
-    tries++;
-  } while (isTooClose(x, y) && tries < 60);
-
-  x = clampToWorld(x);
-  y = clampToWorld(y);
-
-  const traits = createTraits(story);
-  const instrument = trackDefs[Math.floor(Math.random() * trackDefs.length)].name;
+  const index = flowers.length;
+  const { x, y } = computeGridPosition(index);
 
   const saved = await insertFlower({
     x: Math.round(x),
     y: Math.round(y),
-    instrument,
-    traits,
+    instrument: trackDefs[Math.floor(Math.random() * trackDefs.length)].name,
+    traits: createTraits(story),
     story,
     name: anonInput.checked ? null : nameInput.value.trim(),
     anonymous: anonInput.checked
@@ -197,7 +192,6 @@ submitBtn.addEventListener("click", async () => {
 
   flowers.push(saved);
   renderFlower(saved);
-
   storyInput.value = "";
 });
 
@@ -211,7 +205,12 @@ enterBtn.addEventListener("click", async () => {
   await startAudio();
 
   const loaded = await fetchFlowers();
-  loaded.forEach(f => {
+  loaded.forEach((f, i) => {
+    if (!f.x || !f.y) {
+      const pos = computeGridPosition(i);
+      f.x = pos.x;
+      f.y = pos.y;
+    }
     flowers.push(f);
     renderFlower(f);
   });
@@ -224,4 +223,3 @@ enterBtn.addEventListener("click", async () => {
 });
 
 });
-
