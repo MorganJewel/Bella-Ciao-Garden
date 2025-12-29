@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-/* ================== SUPABASE CONFIG ================== */
+/* ================== SUPABASE ================== */
 const SUPABASE_URL = "https://pyxfpgdfqrdjnghndonl.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5eGZwZ2RmcXJkam5naG5kb25sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2OTA4NjQsImV4cCI6MjA4MjI2Njg2NH0.vNADBa5Tn1Yyyvto75aBIXYig586ilRF1ysuX7Fy_wg";
 
@@ -11,7 +11,7 @@ const HEADERS = {
   "Content-Type": "application/json"
 };
 
-/* ================== ELEMENTS ================== */
+/* ================== DOM ================== */
 const intro = document.getElementById("intro");
 const garden = document.getElementById("garden");
 const enterBtn = document.getElementById("enterBtn");
@@ -22,14 +22,13 @@ const storyInput = document.getElementById("storyInput");
 const nameInput = document.getElementById("nameInput");
 const anonInput = document.getElementById("anonInput");
 
-/* ================== WORLD CONSTANTS ================== */
+/* ================== WORLD ================== */
 const WORLD_SIZE = 5200;
 const WORLD_CENTER = WORLD_SIZE / 2;
-const CELL_SIZE = 180; // ★ controls spacing between flowers
-
+const CELL_SIZE = 190;
 const GRID_COLS = Math.floor(WORLD_SIZE / CELL_SIZE);
 
-function clampToWorld(v) {
+function clamp(v) {
   return Math.max(120, Math.min(WORLD_SIZE - 120, v));
 }
 
@@ -61,13 +60,14 @@ document.addEventListener("mousemove", e => {
 document.addEventListener("wheel", e => {
   e.preventDefault();
   camera.targetZoom += e.deltaY * -0.001;
-  camera.targetZoom = Math.min(Math.max(camera.targetZoom, 0.3), 1.5);
+  camera.targetZoom = Math.min(Math.max(camera.targetZoom, 0.35), 1.6);
 }, { passive: false });
 
 /* ================== AUDIO ================== */
 let audioCtx = null;
 let audioStarted = false;
 let tracks = [];
+let hoverInstrument = null;
 
 const BASE = "/Bella-Ciao-Garden";
 const trackDefs = [
@@ -91,6 +91,7 @@ async function startAudio() {
   );
 
   const startTime = audioCtx.currentTime + 0.25;
+
   decoded.forEach(t => {
     const src = audioCtx.createBufferSource();
     const gain = audioCtx.createGain();
@@ -103,31 +104,41 @@ async function startAudio() {
   });
 }
 
+function updateAudioMix() {
+  if (!tracks.length) return;
+
+  if (hoverInstrument) {
+    tracks.forEach(t =>
+      t.gain.gain.value = (t.name === hoverInstrument) ? 1.0 : 0.05
+    );
+  } else {
+    tracks.forEach(t => t.gain.gain.value = 0.6);
+  }
+}
+
 /* ================== FLOWERS ================== */
 const flowers = [];
 const COLORS = ["#f4d35e", "#ee964b", "#f95738", "#cdb4db", "#83c5be"];
 
 function createTraits(story) {
-  const intensity = Math.min(Math.max(story.length / 300, 0.2), 1);
+  const intensity = Math.min(Math.max(story.length / 280, 0.2), 1);
   const color = COLORS[Math.floor(Math.random() * COLORS.length)];
   return {
     petals: Math.round(6 + intensity * 6),
     petalW: 12 + intensity * 4,
     petalH: 24 + intensity * 10,
-    radius: 20 + intensity * 10,
+    radius: 22 + intensity * 10,
     gradient: `linear-gradient(180deg, ${color}, rgba(0,0,0,0.25))`
   };
 }
 
-// ★ FIX: deterministic grid placement with organic jitter
-function computeGridPosition(index) {
+function gridPosition(index) {
   const col = index % GRID_COLS;
   const row = Math.floor(index / GRID_COLS);
-
-  const jitter = 40;
+  const jitter = 45;
   return {
-    x: clampToWorld(col * CELL_SIZE + CELL_SIZE / 2 + (Math.random() - 0.5) * jitter),
-    y: clampToWorld(row * CELL_SIZE + CELL_SIZE / 2 + (Math.random() - 0.5) * jitter)
+    x: clamp(col * CELL_SIZE + CELL_SIZE / 2 + (Math.random() - 0.5) * jitter),
+    y: clamp(row * CELL_SIZE + CELL_SIZE / 2 + (Math.random() - 0.5) * jitter)
   };
 }
 
@@ -148,15 +159,40 @@ function renderFlower(flower) {
     p.style.height = `${flower.traits.petalH}px`;
     p.style.background = flower.traits.gradient;
     p.style.transform =
-      `rotate(${(360 / flower.traits.petals) * i}deg) translateY(${flower.traits.radius}px) translateX(-50%)`;
+      `rotate(${(360 / flower.traits.petals) * i}deg)
+       translateY(${flower.traits.radius}px)
+       translateX(-50%)`;
     blossom.appendChild(p);
   }
 
   el.appendChild(blossom);
+
+  const tip = document.createElement("div");
+  tip.className = "tooltip";
+  tip.innerHTML = `
+    <div class="tip-name">
+      ${flower.anonymous ? "Anonymous" : (flower.name || "Anonymous")}
+    </div>
+    <div class="tip-story">
+      ${flower.story || ""}
+    </div>
+  `;
+  el.appendChild(tip);
+
+  el.addEventListener("mouseenter", () => {
+    hoverInstrument = flower.instrument;
+    el.classList.add("active");
+  });
+
+  el.addEventListener("mouseleave", () => {
+    hoverInstrument = null;
+    el.classList.remove("active");
+  });
+
   world.appendChild(el);
 }
 
-/* ================== SUPABASE ================== */
+/* ================== SUPABASE I/O ================== */
 async function fetchFlowers() {
   const res = await fetch(`${REST_FLOWERS}?select=*&order=created_at.asc`, { headers: HEADERS });
   return await res.json();
@@ -178,7 +214,7 @@ submitBtn.addEventListener("click", async () => {
   if (!story) return;
 
   const index = flowers.length;
-  const { x, y } = computeGridPosition(index);
+  const { x, y } = gridPosition(index);
 
   const saved = await insertFlower({
     x: Math.round(x),
@@ -207,7 +243,7 @@ enterBtn.addEventListener("click", async () => {
   const loaded = await fetchFlowers();
   loaded.forEach((f, i) => {
     if (!f.x || !f.y) {
-      const pos = computeGridPosition(i);
+      const pos = gridPosition(i);
       f.x = pos.x;
       f.y = pos.y;
     }
@@ -217,7 +253,9 @@ enterBtn.addEventListener("click", async () => {
 
   requestAnimationFrame(function animate() {
     camera.zoom += (camera.targetZoom - camera.zoom) * 0.08;
-    world.style.transform = `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`;
+    world.style.transform =
+      `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`;
+    updateAudioMix();
     requestAnimationFrame(animate);
   });
 });
