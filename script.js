@@ -22,47 +22,47 @@ const storyInput = document.getElementById("storyInput");
 const nameInput = document.getElementById("nameInput");
 const anonInput = document.getElementById("anonInput");
 
-/*================== WORLD ================== */
-const WORLD_WIDTH = 7000;
-const WORLD_HEIGHT = 7000;
-const WORLD_SIZE = 7000 * 2;
-const WORLD_CENTER = WORLD_SIZE/2;
+/* ================== WORLD ================== */
+const WORLD_SIZE = 5200;
+const WORLD_CENTER = WORLD_SIZE / 2;
 const CELL_SIZE = 190;
-const GRID_COLS = Math.floor(WORLD_SIZE/CELL_SIZE);
+const GRID_COLS = Math.floor(WORLD_SIZE / CELL_SIZE);
+
 function clamp(v) {
-  return Math.max{120, Math.min(WORLD_SIZE - 120, v));
-                  }
-/* ================= CAMERA ================= */
+  return Math.max(120, Math.min(WORLD_SIZE - 120, v));
+}
+
+/* ================== CAMERA ================== */
 let camera = {
-  x:0,
-  y:0,
-  zoom:1,
-  targetZoom:1
+  x: -WORLD_CENTER,
+  y: -WORLD_CENTER,
+  zoom: 1,
+  targetZoom: 1
 };
+
 let dragging = false;
 let lastX = 0;
 let lastY = 0;
 
-document.addEventListener("mousedown",e=>{
+document.addEventListener("mousedown", e => {
   dragging = true;
   lastX = e.clientX;
   lastY = e.clientY;
 });
-document.addEventListener("mouseup",()=>dragging = false);
-document.addEventListener("mousemove", e=> {
-  if(!dragging) return
-  camera.x +=(e.clientX-lastX)/camera.zoom;
-  camera.y +=(e.clientY-lastY)/camera.zoom;
-  lastX=e.clientX;
-  lastY=e.clientY;
+document.addEventListener("mouseup", () => dragging = false);
+document.addEventListener("mousemove", e => {
+  if (!dragging) return;
+  camera.x += (e.clientX - lastX) / camera.zoom;
+  camera.y += (e.clientY - lastY) / camera.zoom;
+  lastX = e.clientX;
+  lastY = e.clientY;
 });
-document.addEventListener("wheel", e=> {
+document.addEventListener("wheel", e => {
   e.preventDefault();
   camera.targetZoom += e.deltaY * -0.001;
-  camera.targetZoom = Math.min(Math.max(camera.targetZoom, 0.35),
-                               1.6);
+  camera.targetZoom = Math.min(Math.max(camera.targetZoom, 0.35), 1.6);
+}, { passive: false });
 
-}, {passive:false});
 /* ================== AUDIO ================== */
 let audioCtx = null;
 let audioStarted = false;
@@ -146,7 +146,7 @@ function renderFlower(flower) {
   const el = document.createElement("div");
   el.className = "flower";
   el.style.left = `${flower.x}px`;
-  el.style.top = `${flower.y}px`;
+  el.style.top = `${WORLD_SIZE - flower.y}px`;
   el.style.transform = "translate(-50%, -100%)";
 
   const blossom = document.createElement("div");
@@ -251,13 +251,6 @@ enterBtn.addEventListener("click", async () => {
     renderFlower(f);
   });
 
-  // ✅ CENTER CAMERA AFTER FLOWERS LOAD
-  const WORLD_WIDTH = 7000;
-  const WORLD_HEIGHT = 7000;
-  camera.x = -(WORLD_WIDTH / 2) + (window.innerWidth / 2);
-  camera.y = -(WORLD_HEIGHT / 2) + (window.innerHeight / 2);
-
-  // ✅ START ANIMATION LOOP
   requestAnimationFrame(function animate() {
     camera.zoom += (camera.targetZoom - camera.zoom) * 0.08;
     world.style.transform =
@@ -268,11 +261,3 @@ enterBtn.addEventListener("click", async () => {
 });
 
 });
-
-
-
-
-
-
-
-
