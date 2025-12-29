@@ -2,24 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ================== SUPABASE CONFIG ================== */
   const SUPABASE_URL = "https://pyxfpgdfqrdjnghndonl.supabase.co";
-
-  // Read anon key from a meta tag in index.html to avoid committing keys directly.
-  // Add this meta to your index.html:
-  // <meta name="supabase-anon-key" content="eyJ...">
-  const SUPABASE_ANON_KEY = document.querySelector('meta[name="supabase-anon-key"]')?.content || "";
-
-  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === "REPLACE_ME") {
-    console.error("Supabase anon key is missing. Add a meta[name='supabase-anon-key'] in index.html or set SUPABASE_ANON_KEY.");
-    // Optional: friendly UI message (if you have an element to show it)
-    const intro = document.getElementById("intro");
-    if (intro) {
-      const err = document.createElement("div");
-      err.style.color = "red";
-      err.style.marginTop = "12px";
-      err.textContent = "Configuration error: Supabase API key missing. Contact the site owner.";
-      intro.appendChild(err);
-    }
-  }
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5eGZwZ2RmcXJkam5naG5kb25sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2OTA4NjQsImV4cCI6MjA4MjI2Njg2NH0.vNADBa5Tn1Yyyvto75aBIXYig586ilRF1ysuX7Fy_wg";
 
   const REST_FLOWERS = `${SUPABASE_URL}/rest/v1/flowers`;
   const HEADERS = {
@@ -179,118 +162,11 @@ document.addEventListener("DOMContentLoaded", () => {
     return "motion-soprano";
   }
 
-  // Helper: effective visual radius of a flower (petals + padding)
-  function getEffectiveRadius(traits) {
-    const petalMax = Math.max(traits?.petalW || 12, traits?.petalH || 24);
-    const core = traits?.radius || 18;
-    return core + petalMax / 2 + 12; // extra padding so petals don't touch
-  }
-
-  function isOverlap(x1, y1, r1, x2, y2, r2) {
-    return Math.hypot(x1 - x2, y1 - y2) < (r1 + r2);
-  }
-
-  // Try to find a nearby position that does not overlap existing flowers.
-  // Starts at desiredX/desiredY and spirals outwards with random jitter.
-  function findNonOverlappingPosition(desiredX, desiredY, traits, maxAttempts = 120) {
-    const baseR = getEffectiveRadius(traits);
-    // If there are no existing flowers, just return the desired position
-    if (!flowers.length) return { x: clampToWorld(desiredX), y: clampToWorld(desiredY) };
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const angle = Math.random() * Math.PI * 2;
-      const step = Math.ceil((attempt + 1) / 4);
-      const spread = 8 + step * 22 + Math.random() * 28;
-      const dx = (attempt === 0) ? 0 : Math.cos(angle) * spread;
-      const dy = (attempt === 0) ? 0 : Math.sin(angle) * spread;
-      const cx = clampToWorld(desiredX + dx);
-      const cy = clampToWorld(desiredY + dy);
-
-      let ok = true;
-      for (const f of flowers) {
-        const fx = (typeof f._x === "number") ? f._x : f.x;
-        const fy = (typeof f._y === "number") ? f._y : f.y;
-        const fr = getEffectiveRadius(f.traits || {});
-        if (isOverlap(cx, cy, baseR, fx, fy, fr + 8)) { // +8 safety gap
-          ok = false;
-          break;
-        }
-      }
-      if (ok) return { x: cx, y: cy };
-    }
-
-    // last resort: pick a random spot anywhere in world
-    for (let i = 0; i < 60; i++) {
-      const cx = clampToWorld(120 + Math.random() * (WORLD_SIZE - 240));
-      const cy = clampToWorld(120 + Math.random() * (WORLD_SIZE - 240));
-      let ok = true;
-      for (const f of flowers) {
-        const fx = (typeof f._x === "number") ? f._x : f.x;
-        const fy = (typeof f._y === "number") ? f._y : f.y;
-        const fr = getEffectiveRadius(f.traits || {});
-        if (isOverlap(cx, cy, baseR, fx, fy, fr + 8)) {
-          ok = false;
-          break;
-        }
-      }
-      if (ok) return { x: cx, y: cy };
-    }
-
-    // fallback to desired position if nothing else
-    return { x: clampToWorld(desiredX), y: clampToWorld(desiredY) };
-  }
-
-  // Relax loaded flowers to separate any overlapping ones (display-only)
-  function relaxLoadedFlowers(iterations = 40) {
-    // Ensure each flower has _x/_y for display
-    flowers.forEach(f => {
-      if (typeof f._x !== "number") f._x = f.x;
-      if (typeof f._y !== "number") f._y = f.y;
-      if (typeof f.traits === "string") {
-        try { f.traits = JSON.parse(f.traits); } catch (e) { /* ignore */ }
-      }
-    });
-
-    for (let it = 0; it < iterations; it++) {
-      let moved = false;
-      for (let i = 0; i < flowers.length; i++) {
-        for (let j = i + 1; j < flowers.length; j++) {
-          const a = flowers[i];
-          const b = flowers[j];
-          const ax = a._x, ay = a._y;
-          const bx = b._x, by = b._y;
-          const ra = getEffectiveRadius(a.traits || {});
-          const rb = getEffectiveRadius(b.traits || {});
-          const dx = bx - ax;
-          const dy = by - ay;
-          const dist = Math.hypot(dx, dy) || 0.001;
-          const minDist = ra + rb + 6; // small buffer
-          if (dist < minDist) {
-            moved = true;
-            const overlap = (minDist - dist) * 0.5;
-            const ux = dx / dist;
-            const uy = dy / dist;
-            a._x = clampToWorld(ax - ux * overlap * 0.7);
-            a._y = clampToWorld(ay - uy * overlap * 0.7);
-            b._x = clampToWorld(bx + ux * overlap * 0.7);
-            b._y = clampToWorld(by + uy * overlap * 0.7);
-          }
-        }
-      }
-      if (!moved) break;
-    }
-  }
-
   function renderFlower(flower, planting = false) {
     const el = document.createElement("div");
     el.className = `flower ${planting ? "planting" : "live"} ${motionClass(flower.instrument)}`;
-
-    // use display coordinates if present (_x/_y) so we can nudge visuals without changing DB
-    const dx = (typeof flower._x === "number") ? flower._x : flower.x;
-    const dy = (typeof flower._y === "number") ? flower._y : flower.y;
-
-    el.style.left = `${dx}px`;
-    el.style.top = `${WORLD_SIZE - dy}px`;
+    el.style.left = `${flower.x}px`;
+    el.style.top = `${WORLD_SIZE - flower.y}px`;
     el.style.transform = "translate(-50%, -100%)";
 
     const stem = document.createElement("div");
@@ -299,11 +175,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const blossom = document.createElement("div");
     blossom.className = "blossom";
-
-    // ensure traits object
-    if (typeof flower.traits === "string") {
-      try { flower.traits = JSON.parse(flower.traits); } catch (e) { /* ignore */ }
-    }
 
     for (let i = 0; i < flower.traits.petals; i++) {
       const p = document.createElement("div");
@@ -364,9 +235,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let dist = Infinity;
 
     flowers.forEach(f => {
-      const fx = (typeof f._x === "number") ? f._x : f.x;
-      const fy = (typeof f._y === "number") ? f._y : f.y;
-      const d = Math.hypot(fx - wx, fy - wy);
+      const d = Math.hypot(f.x - wx, f.y - wy);
       if (d < dist) {
         dist = d;
         closest = f.instrument;
@@ -395,33 +264,10 @@ document.addEventListener("DOMContentLoaded", () => {
   async function fetchFlowers() {
     try {
       const res = await fetch(`${REST_FLOWERS}?select=*&order=created_at.asc`, { headers: HEADERS });
-      if (!res.ok) {
-        // try to capture response body to help debug (may be CORS/401/403)
-        let body = null;
-        try { body = await res.text(); } catch (e) { body = "<could not read body>"; }
-        console.error("Supabase fetch failed:", res.status, body);
-        if (res.status === 401) {
-          console.error("401 from Supabase — check anon key and table policies (RLS).");
-        }
-        // fallback: use cached flowers from localStorage if present
-        const cached = localStorage.getItem("flowers_cache");
-        if (cached) {
-          console.warn("Using cached flowers due to Supabase fetch failure.");
-          try { return JSON.parse(cached); } catch (e) { return []; }
-        }
-        throw new Error("Supabase fetch failed");
-      }
-      const data = await res.json();
-      // cache successful result so we can show flowers even when fetch fails later
-      try { localStorage.setItem("flowers_cache", JSON.stringify(data)); } catch (e) { console.warn("Could not cache flowers", e); }
-      return data;
+      if (!res.ok) throw new Error("Supabase fetch failed");
+      return await res.json();
     } catch (err) {
       console.error("Supabase fetch error:", err);
-      const cached = localStorage.getItem("flowers_cache");
-      if (cached) {
-        console.warn("Using cached flowers due to Supabase fetch error.");
-        try { return JSON.parse(cached); } catch (e) { return []; }
-      }
       return [];
     }
   }
@@ -433,25 +279,8 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: { ...HEADERS, Prefer: "return=representation" },
         body: JSON.stringify(row)
       });
-      if (!res.ok) {
-        let body = "<no body>";
-        try { body = await res.text(); } catch (e) { /* ignore */ }
-        console.error("Supabase insert failed:", res.status, body);
-        if (res.status === 401) {
-          throw new Error("Supabase insert failed: 401 — check anon key and policies.");
-        }
-        throw new Error("Supabase insert failed");
-      }
+      if (!res.ok) throw new Error("Supabase insert failed");
       const data = await res.json();
-      // update local cache with the new saved row (so cached view remains current)
-      try {
-        const saved = data[0];
-        const cached = JSON.parse(localStorage.getItem("flowers_cache") || "[]");
-        cached.push(saved);
-        localStorage.setItem("flowers_cache", JSON.stringify(cached));
-      } catch (e) {
-        // ignore cache errors
-      }
       return data[0];
     } catch (err) {
       console.error("Supabase insert error:", err);
@@ -468,20 +297,16 @@ document.addEventListener("DOMContentLoaded", () => {
     submitStatus.textContent = "Planting…";
 
     try {
+      const { wx, wy } = getCameraWorldPosition();
+      const x = clampToWorld(wx + (Math.random() - 0.5) * 200);
+      const y = clampToWorld(wy + (Math.random() - 0.5) * 200);
+
       const instrument = trackDefs[Math.floor(Math.random() * trackDefs.length)].name;
       const traits = createTraits(story, instrument);
 
-      const { wx, wy } = getCameraWorldPosition();
-      const desiredX = clampToWorld(wx + (Math.random() - 0.5) * 200);
-      const desiredY = clampToWorld(wy + (Math.random() - 0.5) * 200);
-
-      const pos = findNonOverlappingPosition(desiredX, desiredY, traits);
-      const x = Math.round(pos.x);
-      const y = Math.round(pos.y);
-
       const saved = await insertFlower({
-        x,
-        y,
+        x: Math.round(x),
+        y: Math.round(y),
         instrument,
         traits,
         story,
@@ -490,11 +315,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       const flower = { ...saved };
-      if (typeof flower.traits === "string") {
-        try { flower.traits = JSON.parse(flower.traits); } catch (e) { /* ignore */ }
-      }
-      flower._x = x;
-      flower._y = y;
       flowers.push(flower);
       renderFlower(flower, true);
 
@@ -518,24 +338,10 @@ document.addEventListener("DOMContentLoaded", () => {
     await startAudio();
 
     const loaded = await fetchFlowers();
-    // push loaded rows into flowers and ensure traits/coords are normalized
     loaded.forEach(f => {
-      if (typeof f.traits === "string") {
-        try { f.traits = JSON.parse(f.traits); } catch (e) { /* ignore */ }
-      }
-      f._x = (typeof f.x === "number") ? f.x : clampToWorld(Math.round(WORLD_CENTER + (Math.random() - 0.5) * 300));
-      f._y = (typeof f.y === "number") ? f.y : clampToWorld(Math.round(WORLD_CENTER + (Math.random() - 0.5) * 300));
       flowers.push(f);
+      renderFlower(f, false);
     });
-
-    // nudge overlapping loaded flowers apart for display
-    relaxLoadedFlowers();
-
-    // ensure world is empty before rendering (avoid invisible duplicates)
-    world.innerHTML = "";
-
-    // now render all flowers
-    flowers.forEach(f => renderFlower(f, false));
 
     requestAnimationFrame(animate);
   });
