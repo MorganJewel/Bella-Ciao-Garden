@@ -34,8 +34,8 @@ function clamp(v) {
 
 /* ================== CAMERA ================== */
 let camera = {
-  x: -WORLD_CENTER,
-  y: -WORLD_CENTER,
+  x: 0,
+  y: 0,
   zoom: 1,
   targetZoom: 1
 };
@@ -261,4 +261,5 @@ enterBtn.addEventListener("click", async () => {
 });
 
 });
+
 
